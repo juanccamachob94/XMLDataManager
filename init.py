@@ -23,7 +23,7 @@ class SiteMapReader:
             return the <sitemap> collection; each item is a OrderedDict instance
             with the keys locm and lastmod of xml file.
         """
-        return list(XMLReader.perform(xml_url)[cls.ROOT_CONTAINER_NAME]['sitemap'])
+        return list(XMLReader.perform(xml_url).get(cls.ROOT_CONTAINER_NAME, []).get('sitemap', []))
 
 
     @classmethod
@@ -35,9 +35,11 @@ class SiteMapReader:
             aaaa-mm-dd => 2021-09-03
             aaaa-mm-ddThh:mm-ss:mmmm => 2021-09-03T10:20-05:00
         """
-        print(cls.complete_list(xml_url)[0]['lastmod'])
         return list(
-            filter(lambda w: lastmod in w['lastmod'], cls.complete_list(xml_url))
+            filter(
+                lambda sitemap: sitemap.get('lastmod', '').startswith(lastmod),
+                cls.complete_list(xml_url)
+            )
         )
 
 
@@ -65,8 +67,8 @@ class ADN40SiteMapReader:
         elif location_type == 'last':
             return [SiteMapReader.last_by_lastmod(cls.XML_URL, lastmod)]
         else:
-            return [SiteMapReader.list_by_lastmod(cls.XML_URL, lastmod)]
+            return SiteMapReader.list_by_lastmod(cls.XML_URL, lastmod)
 
 
-for x in ADN40SiteMapReader.perform('2021-10-', location_type=None):
+for x in ADN40SiteMapReader.perform('2021-10', location_type=None):
     print(x)
