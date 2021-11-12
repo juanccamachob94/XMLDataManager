@@ -14,7 +14,7 @@ class XMLReader:
         # return a XML Content Oredered Dict object <class 'collections.OrderedDict'>
         return xmltodict.parse(requests.get(url).content)
 
-class SiteMapReader:
+class SiteMapIndexReader:
     ROOT_CONTAINER_NAME = 'sitemapindex'
 
     @classmethod
@@ -37,7 +37,7 @@ class SiteMapReader:
         """
         return list(
             filter(
-                lambda sitemap: sitemap.get('lastmod', '').startswith(lastmod),
+                lambda sitemap: cls.__is_valid_sitemap(sitemap, lastmod),
                 cls.complete_list(xml_url)
             )
         )
@@ -46,29 +46,37 @@ class SiteMapReader:
     @classmethod
     def first_by_lastmod(cls, xml_url, lastmod):
         # first in the list based on the xml file location
-        return cls.list_by_lastmod(xml_url, lastmod)[0]
+        lastmod_list = cls.list_by_lastmod(xml_url, lastmod)
+        return lastmod_list[0] if len(lastmod_list) else None
 
 
     @classmethod
     def last_by_lastmod(cls, xml_url, lastmod):
         # last in the list based on the xml file locations
         lastmod_list = cls.list_by_lastmod(xml_url, lastmod)
-        return lastmod_list[len(lastmod_list) - 1]
+        return lastmod_list[len(lastmod_list) - 1] if len(lastmod_list) else None
 
 
-class ADN40SiteMapReader:
+    @classmethod
+    def __is_valid_sitemap(cls, sitemap, lastmod):
+        sitemap.get('lastmod', '').startswith(lastmod) \
+            and sitemap.get('loc') != None
+
+class ADN40SiteMapIndexReader:
     XML_URL = 'https://www.adn40.mx/sitemap.xml'
 
     @classmethod
     def perform(cls, lastmod, location_type='first'):
         # returns an array of OrderedDict instances
         if location_type == 'first':
-            return [SiteMapReader.first_by_lastmod(cls.XML_URL, lastmod)]
+            sitemaps = [SiteMapIndexReader.first_by_lastmod(cls.XML_URL, lastmod)]
         elif location_type == 'last':
-            return [SiteMapReader.last_by_lastmod(cls.XML_URL, lastmod)]
+            sitemaps = [SiteMapIndexReader.last_by_lastmod(cls.XML_URL, lastmod)]
         else:
-            return SiteMapReader.list_by_lastmod(cls.XML_URL, lastmod)
+            sitemaps = SiteMapIndexReader.list_by_lastmod(cls.XML_URL, lastmod)
+        return list(filter(None, sitemaps))
 
 
-for x in ADN40SiteMapReader.perform('2021-10', 'first'):
-    print(x)
+
+for sitemap in ADN40SiteMapIndexReader.perform('2021-10'):
+    print(sitemap)
