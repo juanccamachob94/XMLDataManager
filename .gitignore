@@ -142,3 +142,4 @@ dmypy.json
 XMLDataManager.zip
 # default name of zip file of MAC operative system
 Archive.zip
+.idea/
