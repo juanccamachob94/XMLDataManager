@@ -70,5 +70,5 @@ class ADN40SiteMapReader:
             return SiteMapReader.list_by_lastmod(cls.XML_URL, lastmod)
 
 
-for x in ADN40SiteMapReader.perform('2021-10', location_type=None):
+for x in ADN40SiteMapReader.perform('2021-10', 'first'):
     print(x)
