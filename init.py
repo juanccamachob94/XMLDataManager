@@ -59,8 +59,10 @@ class SiteMapIndexReader:
 
     @classmethod
     def __is_valid_sitemap(cls, sitemap, lastmod):
-        sitemap.get('lastmod', '').startswith(lastmod) \
+        sitemap_lastmod = sitemap.get('lastmod')
+        sitemap_lastmod and sitemap_lastmod.startswith(lastmod) \
             and sitemap.get('loc') != None
+        return True
 
 class ADN40SiteMapIndexReader:
     XML_URL = 'https://www.adn40.mx/sitemap.xml'
@@ -68,12 +70,14 @@ class ADN40SiteMapIndexReader:
     @classmethod
     def perform(cls, lastmod, location_type='first'):
         # returns an array of OrderedDict instances
+        sitemaps = []
         if location_type == 'first':
             sitemaps = [SiteMapIndexReader.first_by_lastmod(cls.XML_URL, lastmod)]
         elif location_type == 'last':
             sitemaps = [SiteMapIndexReader.last_by_lastmod(cls.XML_URL, lastmod)]
         else:
             sitemaps = SiteMapIndexReader.list_by_lastmod(cls.XML_URL, lastmod)
+        print(sitemaps)
         return list(filter(None, sitemaps))
 
 
