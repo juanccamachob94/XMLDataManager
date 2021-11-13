@@ -109,9 +109,26 @@ class AccountSiteMapIndexReader:
 
 class AccountSiteMapReader:
     @classmethod
-    def perform(cls, xml_url):
-        return SiteMapReader.news_list(xml_url)
+    def perform(cls, xml_url, expected_type='news'):
+        if expected_type == 'news':
+            return SiteMapReader.news_list(xml_url)
+        elif expected_type == 'videos':
+            return SiteMapReader.video_list(xml_url)
+        else:
+            return SiteMapReader.complete_list(xml_url)
+
+
+
+class NewsSitemapContentProcessor:
+    @classmethod
+    def perform(cls, sitemap_content_item):
+        pass
+class SitemapContentProcessor:
+    @classmethod
+    def perform(cls, sitemap_content_item, expected_type='news'):
+        if expected_type == 'news':
+            NewsSitemapContentProcessor.perform(sitemap_content_item)
 
 for sitemap in AccountSiteMapIndexReader.perform('https://www.adn40.mx/sitemap.xml', '2021-10'):
-    for url_content in AccountSiteMapReader.perform(sitemap['loc']):
-        print(url_content)
+    for sitemap_content_item in AccountSiteMapReader.perform(sitemap['loc']):
+        print(sitemap_content_item)
