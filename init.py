@@ -14,8 +14,10 @@ class XMLReader:
         # return a XML Content Oredered Dict object <class 'collections.OrderedDict'>
         return xmltodict.parse(requests.get(url).content)
 
-class SiteMapIndexReader:
-    ROOT_CONTAINER_NAME = 'sitemapindex'
+
+class DefaultReader:
+    ROOT_CONTAINER_NAME = None
+    ITEM_CONTAINER_NAME = None
 
     @classmethod
     def complete_list(cls, xml_url):
@@ -23,8 +25,16 @@ class SiteMapIndexReader:
             return the <sitemap> collection; each item is a OrderedDict instance
             with the keys locm and lastmod of xml file.
         """
-        return list(XMLReader.perform(xml_url).get(cls.ROOT_CONTAINER_NAME, []).get('sitemap', []))
+        content = XMLReader.perform(xml_url) \
+            .get(cls.ROOT_CONTAINER_NAME, []).get(cls.ITEM_CONTAINER_NAME, [])
+        if isinstance(content, list):
+            return content
+        return [content]
 
+
+class SiteMapIndexReader(DefaultReader):
+    ROOT_CONTAINER_NAME = 'sitemapindex'
+    ITEM_CONTAINER_NAME = 'sitemap'
 
     @classmethod
     def list_by_lastmod(cls, xml_url, lastmod):
@@ -64,23 +74,44 @@ class SiteMapIndexReader:
             and sitemap.get('loc') != None
         return True
 
-class ADN40SiteMapIndexReader:
-    XML_URL = 'https://www.adn40.mx/sitemap.xml'
+
+class SiteMapReader(DefaultReader):
+    ROOT_CONTAINER_NAME = 'urlset'
+    ITEM_CONTAINER_NAME = 'url'
 
     @classmethod
-    def perform(cls, lastmod, location_type='first'):
+    def news_list(cls, xml_url):
+        return list(filter(lambda item: cls.__is_a(item, 'news'), cls.complete_list(xml_url)))
+
+
+    @classmethod
+    def video_list(cls, xml_url):
+        return list(filter(lambda item: cls.__is_a(item, 'video'), cls.complete_list(xml_url)))
+
+
+    @classmethod
+    def __is_a(cls, item, expected_type):
+        return item.get(''.join([expected_type, ':', expected_type]), False)
+
+
+class AccountSiteMapIndexReader:
+    @classmethod
+    def perform(cls, xml_url, lastmod, location_type='first'):
         # returns an array of OrderedDict instances
         sitemaps = []
         if location_type == 'first':
-            sitemaps = [SiteMapIndexReader.first_by_lastmod(cls.XML_URL, lastmod)]
+            sitemaps = [SiteMapIndexReader.first_by_lastmod(xml_url, lastmod)]
         elif location_type == 'last':
-            sitemaps = [SiteMapIndexReader.last_by_lastmod(cls.XML_URL, lastmod)]
+            sitemaps = [SiteMapIndexReader.last_by_lastmod(xml_url, lastmod)]
         else:
-            sitemaps = SiteMapIndexReader.list_by_lastmod(cls.XML_URL, lastmod)
-        print(sitemaps)
+            sitemaps = SiteMapIndexReader.list_by_lastmod(xml_url, lastmod)
         return list(filter(None, sitemaps))
 
+class AccountSiteMapReader:
+    @classmethod
+    def perform(cls, xml_url):
+        return SiteMapReader.news_list(xml_url)
 
-
-for sitemap in ADN40SiteMapIndexReader.perform('2021-10'):
-    print(sitemap)
+for sitemap in AccountSiteMapIndexReader.perform('https://www.adn40.mx/sitemap.xml', '2021-10'):
+    for url_content in AccountSiteMapReader.perform(sitemap['loc']):
+        print(url_content)
