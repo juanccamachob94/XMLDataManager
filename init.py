@@ -3,7 +3,10 @@
 """
 import ssl # to connect with external url resources
 import requests
+import tempfile
+import urllib.request
 import xmltodict
+from bs4 import BeautifulSoup
 
 # context to allow access to external file resources (https://...)
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -26,7 +29,7 @@ class DefaultReader:
             with the keys locm and lastmod of xml file.
         """
         content = XMLReader.perform(xml_url) \
-            .get(cls.ROOT_CONTAINER_NAME, []).get(cls.ITEM_CONTAINER_NAME, [])
+            .get(cls.ROOT_CONTAINER_NAME, {}).get(cls.ITEM_CONTAINER_NAME, [])
         if isinstance(content, list):
             return content
         return [content]
@@ -118,17 +121,56 @@ class AccountSiteMapReader:
             return SiteMapReader.complete_list(xml_url)
 
 
+class NewsSitemapPageContentDictGenerator:
+    @classmethod
+    def perform(cls, url):
+        temporary_file_wrapper = tempfile.NamedTemporaryFile(suffix='.html')
+        urllib.request.urlretrieve(url, temporary_file_wrapper.name)
+        with open(temporary_file_wrapper.name) as fp:
+            page_main_content = BeautifulSoup(fp, "html.parser") \
+                .find('article', class_='Page-mainContent')
+            meta_tag_element = page_main_content.find('div', class_='CreativeWorkPage-metas')
+            sub_headline = page_main_content.find('div', class_='CreativeWorkPage-subHeadline')
+            article_body = page_main_content.find('div', class_='ArticlePage-articleBody')
+            news_data = {
+                'author':
+                    meta_tag_element.find('div', class_='CreativeWorkPage-authorName').get_text(),
+                'category':
+                    meta_tag_element.find('div', class_='CreativeWorkPage-section').get_text(),
+                'content': cls.__build_content(sub_headline, article_body),
+                'html_content': cls.__build_html_content(sub_headline, article_body)
+            }
+        temporary_file_wrapper.close()
+        return news_data
 
-class NewsSitemapContentProcessor:
+
+    @classmethod
+    def __build_content(cls, sub_headline, article_body):
+        return ''.join([sub_headline.get_text(), ' ', article_body.get_text()])
+
+
+    @classmethod
+    def __build_html_content(cls, sub_headline, article_body):
+        return ''.join([str(sub_headline), str(article_body)])
+
+class NewsSitemapContentDictGenerator:
     @classmethod
     def perform(cls, sitemap_content_item):
-        pass
+        dict_news_sitemap_content = {
+            'title': sitemap_content_item.get('news:news', {}).get('news:title', None)
+        }
+        dict_news_sitemap_content.update(
+            NewsSitemapPageContentDictGenerator.perform(sitemap_content_item.get('loc'))
+        )
+        return dict_news_sitemap_content
+
 class SitemapContentProcessor:
     @classmethod
     def perform(cls, sitemap_content_item, expected_type='news'):
         if expected_type == 'news':
-            NewsSitemapContentProcessor.perform(sitemap_content_item)
+            return NewsSitemapContentDictGenerator.perform(sitemap_content_item)
+        return None
 
 for sitemap in AccountSiteMapIndexReader.perform('https://www.adn40.mx/sitemap.xml', '2021-10'):
     for sitemap_content_item in AccountSiteMapReader.perform(sitemap['loc']):
-        print(sitemap_content_item)
+        print(SitemapContentProcessor.perform(sitemap_content_item))
